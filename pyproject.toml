@@ -1,0 +1,30 @@
+[project]
+name = "auditbbox"
+version = "0.1"
+authors = [
+  { name="Aida Palacio Hoz", email="aidaph@ifca.unican.es" },
+]
+description = "Public ip scanner for finding exploitable services"
+license = {file = "LICENSE"}
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["nmap", "wpscan", "vulnscan", "wordpress"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux"
+
+]
+
+[build-system]
+requires = ["setuptools >= 61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+auditbbox = "src.main:main"
+
+[project.urls]
+"Homepage" = "https://github.com/pypa/sampleproject"
+"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
+
+
