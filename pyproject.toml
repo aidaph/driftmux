@@ -23,8 +23,4 @@ build-backend = "setuptools.build_meta"
 [project.scripts]
 auditbbox = "src.main:main"
 
-[project.urls]
-"Homepage" = "https://github.com/pypa/sampleproject"
-"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
-
 
