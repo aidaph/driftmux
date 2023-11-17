@@ -1,6 +1,6 @@
-# VulnScan: Vulnerability Scanner
+# AuditBBox: Audit Black Box scanner
 
-Vulnscan is a package which uses nmap and wpscan as main tools
+AuditBBox is a package which uses nmap and wpscan as main tools
 for finding vulnerability versions of a service. 
 
 # Requirements
@@ -33,7 +33,7 @@ vim /usr/share/nmap/scripts/vulscan/vulscan.nse
 
 - Update de database for MITRE CVE. with this csv download and copy them into `/usr/share/nmap/scripts/vulscan`: https://cve.mitre.org/data/downloads/allitems.csv
 
-- Install `wpscan`` package: 
+- Install `wpscan` package: 
 ```
 sudo apt install ruby-dev
 gem install wpscan
@@ -51,5 +51,5 @@ root@x:~# python3 -m pip install -e .
 # Usage
 
 ```
-root@x:~# vulnscan  --host_file=serverList.txt --scripts=vulscan/vulscan.nse --port_range=1-10000
+root@x:~# auditbbox  --host_file=serverList.txt --scripts=vulscan/vulscan.nse --port_range=1-10000
 ```
