@@ -60,7 +60,7 @@ class Scanner:
                 resultcheck = cls.check_vuln(scan,port_line, line)
                 if resultcheck == True:
                     count +=1
-        scan.logger.info("\t Hay {}{} vulnerabilidades ".format(COLOR.RED, count))
+        scan.logger.info("\t Hay {}{}{} vulnerabilidades ".format(COLOR.RED, count, COLOR.RESET))
         return parsed_output
     
     @classmethod
@@ -82,13 +82,17 @@ class Scanner:
             if service == "apache" and ("http" in db_line or cls.has_float(db_line)) \
                                 and (any(c in special_characters for c in db_line.split(" ")[idx+1]) \
                                         or (cls.has_float(db_line.split(" ")[idx+1])) \
-                                        or ("http" in db_line.split(" ")[idx+1])):
+                                        or ("http" in db_line.split(" ")[idx+1])) \
+                                        and not "apache cxf" in db_line:
                 vulnchecked = cls.checkVersion(scan, service, db_line, sversion[0])
             elif service == "http" and not "ibm http server" in db_line \
-                and not "http authentication" in db_line:
+                and not "http authentication" in db_line \
+                and not "apache cxf" in db_line:
                 vulnchecked = cls.checkVersion(scan, service, db_line, sversion[0])
             elif not sversion:
                 scan.logger.info("No version to be checked")
+            elif "apache cxf" in db_line:
+                scan.logger.info("This is not an Apache HTTP service")
             else:
                 pass
                 #scan.logger.info("2 Service {}, Version {}, line_versions {}, DB LINE {}".format(
@@ -122,22 +126,20 @@ class Scanner:
         vulnchecked = False
         if ("<" in db_line or "prior" in db_line or "before" in db_line) \
             and any(sversion < ver for ver in cls.get_version(db_line)):
-            scan.logger.info("1 Service {}, Version {}, line_versions {}, DB LINE {}".format(
-                    service, sversion, cls.get_version(db_line), db_line))
             vulnchecked = True
         elif "through" in db_line:
             tversions = cls.through_version(db_line)
             if not tversions:
                 vulnchecked = False
-                pass
             if sversion >= tversions[0] and sversion <= tversions[1]: 
-                scan.logger.info("1 Service {}, Version {}, line_versions {}, DB LINE {}".format(
+                scan.logger.info("Service {}, Version {}, line_versions {}, DB LINE {}".format(
                         service, sversion, cls.get_version(db_line), db_line))
             vulnchecked  = True
         elif any(sversion == ver for ver in cls.get_version(db_line)):
-            scan.logger.info("1 Service {}, Version {}, line_versions {}, DB LINE {}".format(
-                    service, sversion, cls.get_version(db_line), db_line))
             vulnchecked  = True
+        elif "apache cxf" in db_line:
+            vulnchecked = False
+            pass
         else: 
             pass
         
