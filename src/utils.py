@@ -6,13 +6,15 @@ from collections import namedtuple
 
 class Logger:
 
-    def __init__(self, level="INFO"):
+    def __init__(self, host, level="INFO"):
         self.level = level
         self.logger = logging.getLogger("scan IFCA")
         self.logger.setLevel(self.level)
         
         out_handler = logging.StreamHandler(stdout)
-        #self.file_handler = logging.FileHandler("/var/log/security/nmapscan.log")
+        filename = '/var/log/security/auditbbox/'+'{}.log'.format(host)
+        self.file_handler = logging.FileHandler(filename)
+        print("se ha creado el fichero {}".format(filename))
         formatter = logging.Formatter('%(message)s')
         out_handler.setFormatter(formatter)
         self.logger.addHandler(out_handler)

@@ -42,14 +42,7 @@ def main(host_file,
          scripts,
          port_range):
 
-    logger = Logger()
-    banner(logger)
-
-    # Apply qualys summary
-    #logger.info("\n{} QUALYS summary".format(COLORED_COMBOS.INFO))
-
-    logger.info("\n{} Start Nmap scan".format(COLORED_COMBOS.INFO))
-
+    
     host_list = []
     with open(host_file) as file:
         for host in file:
@@ -57,16 +50,22 @@ def main(host_file,
 
     # Apply nmap scan to each host from the list
     for host in host_list:
-        logger.info("Start scan for {}".format(host))
+        logger = Logger(host)
+        banner(logger)
+
+        # Apply qualys summary
+        #logger.info("\n{} QUALYS summary".format(COLORED_COMBOS.INFO))
+
+        logger.info("\n{} Start Nmap Scan for {}".format(COLORED_COMBOS.INFO, host))
         nmap_scan = NmapScan(host.replace("\n", ""), logger,
                              port_range=port_range)
         
         result = Scanner.runNmap(nmap_scan)
         logger.info("Scanner Result {}".format(result))
 
-        if "wordpress" in host:
-            wp_scan = WPScan(host, logger)
-            WPScanner.runWpscan(wp_scan)
+#        if "wordpress" in host:
+#            wp_scan = WPScan(host, logger)
+#            WPScanner.runWpscan(wp_scan)
             #logger.info("WPSCanner result {}".format(result))
 
     logger.info("\n{}### Ifca scan finished ###{}\n".format(COLOR.GRAY, COLOR.RESET))
