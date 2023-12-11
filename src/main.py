@@ -30,24 +30,19 @@ def main(host_file,
     for host in host_list:
         host = host.replace("\n", "").replace("'", "")
         logger = Logger(host=host)
-        #banner(logger)
-
-        # Apply qualys summary
-        #logger.info("\n{} QUALYS summary".format(COLORED_COMBOS.INFO))
 
         logger.info("\n{} Start Nmap Scan for {}".format(COLORED_COMBOS.INFO, host))
         nmap_scan = NmapScan(host.replace("\n", ""), logger,
                              port_range=port_range)
         
         result = Scanner.runNmap(nmap_scan)
-        #logger.info("Nmap Scanner Result {}".format(result))
 
         wp_scan = WPScan(host, logger)
         if wp_scan.checkWordpress(host, logger):
             result = WPScanner.runWpscan(wp_scan)
         logger.close()
     
-    logger.info("\n{}### Ifca scan finished ###{}\n".format(COLOR.GREEN, COLOR.RESET))
+    logger.info("\n{}### AuditBBox Scan finished ###{}\n".format(COLOR.GREEN, COLOR.RESET))
     os.system("stty sane")
 
 
