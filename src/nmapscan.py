@@ -65,7 +65,9 @@ class Scanner:
     
     @classmethod
     def check_vuln(cls, scan, port_line, db_line):
-        
+        '''
+        TODO: How to check Kerberos version in ipa
+        '''
         vulnchecked = False
         port_line = port_line.split()
         service = port_line[3].lower()
@@ -92,11 +94,13 @@ class Scanner:
             elif not sversion:
                 scan.logger.info("No version to be checked")
             elif "apache cxf" in db_line:
-                scan.logger.info("This is not an Apache HTTP service")
+                pass
             else:
                 pass
-                #scan.logger.info("2 Service {}, Version {}, line_versions {}, DB LINE {}".format(
-                #    service, sversion[0], cls.get_version(db_line), db_line))
+            
+        if vulnchecked:
+            scan.logger.info("{} Vulnerable! {} | {}".format(COLOR.RED, COLOR.RESET,db_line))
+
         return vulnchecked        
 
     @classmethod
@@ -115,31 +119,41 @@ class Scanner:
     @classmethod
     def through_version(cls, inputString):
         pat = r'(\d+\.\d+\.\d+) through (\d+\.\d+\.\d+)'
+        pat2 = r'(\d+\.\d+) up to (\d+\.\d+\.\d+)'
+        pat3 = r'(\d+\.\d+\.\d+) to (\d+\.\d+\.\d+)'
         result = None
         result = re.search(pat , inputString)
+        result2 = re.search(pat2 , inputString)
+        result3 = re.search(pat3 , inputString)
         if result:
             result = [result.group(1), result.group(2)]
+        elif result2:
+            result = [result2.group(1), result2.group(2)]
+        elif result3:
+            result = [result3.group(1), result3.group(2)]
         return result
 
     @classmethod
     def checkVersion(cls, scan, service, db_line, sversion):
         vulnchecked = False
-        if ("<" in db_line or "prior" in db_line or "before" in db_line) \
+        if ("<" in db_line or "prior" in db_line 
+            or "Prior" in db_line or "before" in db_line 
+            or "earlier" in db_line 
+            and not "Windows" in db_line 
+            and not "not earlier" in db_line) \
             and any(sversion < ver for ver in cls.get_version(db_line)):
             vulnchecked = True
-        elif "through" in db_line:
+        elif "through" in db_line or " up to" in db_line \
+            or "Server versions " in db_line:
             tversions = cls.through_version(db_line)
             if not tversions:
                 vulnchecked = False
             if sversion >= tversions[0] and sversion <= tversions[1]: 
-                scan.logger.info("Service {}, Version {}, line_versions {}, DB LINE {}".format(
-                        service, sversion, cls.get_version(db_line), db_line))
-            vulnchecked  = True
+                vulnchecked  = True
         elif any(sversion == ver for ver in cls.get_version(db_line)):
             vulnchecked  = True
         elif "apache cxf" in db_line:
             vulnchecked = False
-            pass
         else: 
             pass
         
