@@ -1,55 +1,80 @@
-# AuditBBox: Audit Black Box scanner
+<p align="center">
+  <img src="sandbox:/mnt/data/a_logo_design_for_a_tool_named_driftmux_related.png" alt="Driftmux logo" width="320">
+</p>
 
-AuditBBox is a package which uses nmap and wpscan as main tools
-for finding vulnerability versions of a service. 
+<h1 align="center">Driftmux</h1>
 
-# Requirements
+<p align="center">
+  <strong>Black-box service discovery, classification, and adaptive scan routing.</strong>
+</p>
 
-- nmap: `sudo apt install nmap`
-- [Vulscan][def] is a module which enhances nmap to a vulnerability scanner: 
+---
 
-[def]: https://github.com/scipag/vulscan/tree/master
+# Driftmux: black-box discovery with adaptive scan routing
+**Driftmux** is a black-box auditing tool focused on **service discovery, classification, and adaptive scan routing**.
 
-vulscan installation as `root``:
+It starts by probing a target surface, identifies exposed services and technologies, and then routes each finding to the most suitable scanner. Instead of treating every host the same way, Driftmux adapts its scanning workflow based on what it discovers.
 
+For example:
+
+- generic network discovery with **Nmap**
+- web and exposed service vulnerability checks with **Nuclei**
+- WordPress-specific assessment with **Plecost**
+
+Driftmux is designed as an **orchestrator**, not as a monolithic scanner.
+
+---
+
+## Features
+
+- Black-box service discovery
+- Technology-aware scan routing
+- Structured output for automation and CI
+- Multiple output formats
+- Modular scanner integration
+- Lightweight CLI workflow
+- Extensible architecture for new service detectors and scanners
+
+---
+
+## How it works
+
+Driftmux follows a simple pipeline:
+
+1. **Discover** exposed ports and services
+2. **Classify** detected applications and technologies
+3. **Route** targets to specialized scanners
+4. **Aggregate** findings into a common data model
+5. **Render** results as console output, JSON, CSV, or Markdown
+
+Example routing logic:
+
+- WordPress detected → **Plecost**
+- HTTP/HTTPS services detected → **Nuclei**
+- Generic open ports detected → **Nmap fingerprints**
+
+
+## Installation
+
+### Requirements
+
+- Python 3.10+
+- `nmap`
+- `nuclei`
+- `plecost`
+
+### Clone the repository
+
+```bash
+git clone https://github.com/<your-user>/driftmux.git
+cd driftmux
 ```
-git clone https://github.com/scipag/vulscan vulscan
-ln -s vulscan /usr/share/nmap/scripts/vulscan
-cd /usr/share/nmap/scripts/vulscan
+
+## Install the Python package
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
 ```
 
-- Remove deprecated DBs and adapt `vulscan.nse` file:
-```
-rm securityfocus.csv openvas.csv securitytracker.csv
-vim /usr/share/nmap/scripts/vulscan/vulscan.nse
-```
-```
- -- Add your own database, if you want to include it in the multi db mode
-    db[1] = {name="VulDB",                  file="scipvuldb.csv",           url="https://vuldb.com",                        link="https://vuldb.com/id.{id}"}
-    db[2] = {name="MITRE CVE",              file="cve.csv",                 url="https://cve.mitre.org",                    link="https://cve.mitre.org/cgi-bin/cvename.cgi?name={id}"}
-    db[3] = {name="Exploit-DB",             file="exploitdb.csv",           url="https://www.exploit-db.com",               link="https://www.exploit-db.com/exploits/{id}"}
-
-```
-
-- Update de database for MITRE CVE. with this csv download and copy them into `/usr/share/nmap/scripts/vulscan`: https://cve.mitre.org/data/downloads/allitems.csv
-
-- Install `wpscan` package: 
-```
-sudo apt install ruby-dev
-gem install wpscan
-```
-
-# Installation 
-
-Use a virtualenv for the installation. This must be done by root to run `nmap` command without issues. 
-
-```
-root@x:~# source venv/bin/activate
-root@x:~# python3 -m pip install -e .
-```
-
-# Usage
-
-```
-root@x:~# auditbbox  --host_file=serverList.txt --scripts=vulscan/vulscan.nse --port_range=1-10000
-```
