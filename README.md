@@ -1,16 +1,13 @@
 <p align="center">
-  <img src="sandbox:/mnt/data/a_logo_design_for_a_tool_named_driftmux_related.png" alt="Driftmux logo" width="320">
+  <img src="driftmux.png" alt="Driftmux logo" width="320">
 </p>
 
-<h1 align="center">Driftmux</h1>
-
 <p align="center">
-  <strong>Black-box service discovery, classification, and adaptive scan routing.</strong>
+  <strong>Black-box service discovery, classification, and adaptive scan routing</strong>
 </p>
 
 ---
 
-# Driftmux: black-box discovery with adaptive scan routing
 **Driftmux** is a black-box auditing tool focused on **service discovery, classification, and adaptive scan routing**.
 
 It starts by probing a target surface, identifies exposed services and technologies, and then routes each finding to the most suitable scanner. Instead of treating every host the same way, Driftmux adapts its scanning workflow based on what it discovers.
