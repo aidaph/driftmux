@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
+from driftmux.planner import build_scan_plan
 from driftmux.models import HostScanResult
 from driftmux.scanners.nmap import NmapScanner
 from driftmux.scanners.nuclei import NucleiScanner
@@ -148,20 +149,24 @@ class DriftmuxEngine:
         return final
 
     def _run_nuclei(
-        self,
-        host: str,
-        discovery: HostScanResult,
-        final: HostScanResult,
-    ) -> None:
-        for service in discovery.services:
-            if not is_web_candidate(service):
-                continue
-
-            nuclei_result = self.nuclei.scan(
-                host,
-                service,
-                scheme=guess_scheme(service, self.config.web_scheme),
+            self,
+            host: str,
+            discovery: HostScanResult,
+            final: HostScanResult,
+        ) -> None:
+            plan = build_scan_plan(
+                host=host,
+                services=discovery.services,
+                passive_findings=final.findings,
+                scheme=self.config.web_scheme,
+                profile=self.config.nuclei_profile,
             )
+
+            nuclei_result = self.nuclei.scan_many(
+                host=host,
+                targets=plan.nuclei_targets,
+            )
+
             final.findings.extend(nuclei_result.findings)
             final.errors.extend(nuclei_result.errors)
 
