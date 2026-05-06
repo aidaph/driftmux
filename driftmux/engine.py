@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, List
+from typing import Iterable
 
 from driftmux.models import HostScanResult
 from driftmux.scanners.nmap import NmapScanner
