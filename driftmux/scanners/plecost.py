@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 import requests
@@ -130,4 +131,3 @@ class PlecostScanner:
                 detected_version=plugin.get("version"),
             ))
         return findings
-
