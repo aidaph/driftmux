@@ -3,6 +3,21 @@
 </p>
 
 <p align="center">
+  <a href="https://pypi.org/project/driftmux/">
+    <img alt="PyPI Version" src="https://img.shields.io/pypi/v/driftmux">
+  </a>
+  <a href="https://pypi.org/project/driftmux/">
+    <img alt="Python Version" src="https://img.shields.io/pypi/pyversions/driftmux">
+  </a>
+  <a href="https://github.com/aidaph/driftmux/actions/workflows/ci.yml">
+    <img alt="CI" src="https://github.com/aidaph/driftmux/actions/workflows/ci.yml/badge.svg">
+  </a>
+  <a href="https://github.com/aidaph/driftmux/blob/main/LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/license-Apache-2.0-blue.svg">
+  </a>
+</p>
+
+<p align="center">
   <strong>Black-box service discovery, classification, and adaptive scan routing</strong>
 </p>
 

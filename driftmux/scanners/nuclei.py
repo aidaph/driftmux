@@ -58,6 +58,8 @@ class NucleiScanner:
             cmd.extend([
                 "-severity", "medium,high,critical",
                 "-etags", "fuzz,headless,dos",
+                "-ss","host-spray",
+                "-c","10"
             ])
 
         return cmd

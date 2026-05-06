@@ -34,7 +34,7 @@ class PlecostScanner:
         markers = ["/wp-content/", "/wp-includes/", "wp-json", "wp-login.php", "wordpress"]
         for url in candidates:
             try:
-                response = requests.get(url, headers=headers, timeout=8, allow_redirects=True, verify=False)
+                response = requests.get(url, headers=headers, timeout=8, allow_redirects=True, verify=True)
                 text = response.text.lower()
                 if any(marker in text for marker in markers):
                     return True
