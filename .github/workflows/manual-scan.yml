@@ -1,0 +1,50 @@
+name: Manual Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Host or URL to scan"
+        required: true
+        type: string
+      ports:
+        description: "Port range"
+        required: false
+        default: "1-1000"
+        type: string
+      nuclei_profile:
+        description: "Nuclei profile"
+        required: false
+        default: "fast"
+        type: choice
+        options:
+          - fast
+          - deep
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: sudo apt update
+      - run: sudo apt install -y nmap
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e .[dev]
+      - run: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+      - run: echo "$HOME/go/bin" >> $GITHUB_PATH
+      - run: pip install plecost
+
+      - run: driftmux --host "${{ inputs.target }}" --ports "${{ inputs.ports }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: driftmux-report
+          path: reports/

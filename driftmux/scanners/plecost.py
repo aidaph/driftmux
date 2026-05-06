@@ -131,4 +131,3 @@ class PlecostScanner:
             ))
         return findings
 
-from pathlib import Path
