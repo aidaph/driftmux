@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import click
 
-from auditbbox.models import HostScanResult
+from driftmux.models import HostScanResult
 
 COLORS = {
     "critical": "red",

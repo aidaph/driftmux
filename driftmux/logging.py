@@ -17,7 +17,7 @@ class COLOR:
 
 
 def get_logger(host: str, output_dir: str = "logs", level: int = logging.INFO) -> logging.Logger:
-    logger_name = f"auditbbox.{host}"
+    logger_name = f"driftmux.{host}"
     logger = logging.getLogger(logger_name)
     logger.setLevel(level)
     logger.propagate = False

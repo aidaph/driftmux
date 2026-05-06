@@ -7,23 +7,60 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from auditbbox.models import Finding, HostScanResult, OpenPort
-
+from driftmux.models import Finding, HostScanResult, OpenPort
 
 @dataclass(slots=True)
 class NucleiScanner:
     timeout: int = 180
+    profile: str = "fast"  # fast | deep
 
     def should_scan(self, service: OpenPort) -> bool:
-        labels = set(service.classifications)
-        return any(label in labels for label in ["http", "apache-httpd", "nginx", "kubernetes"])
+        labels = {label.lower() for label in (service.classifications or [])}
+        svc = (service.service or "").lower()
+        product = (service.product or "").lower()
+        port = int(service.port or 0)
+
+        web_ports = {80, 81, 443, 444, 591, 593, 8000, 8008, 8080, 8081, 8088, 8443, 8888, 9443}
+
+        if any(label in labels for label in ["http", "apache-httpd", "nginx", "kubernetes"]):
+            return True
+
+        if "http" in svc or "https" in svc:
+            return True
+
+        if any(x in product for x in ["apache", "nginx", "tomcat", "jetty", "nextcloud", "kubernetes"]):
+            return True
+
+        if port in web_ports:
+            return True
+
+        return False
 
     def build_target(self, host: str, service: OpenPort, scheme: str = "auto") -> str:
         if host.startswith(("http://", "https://")):
             return host
-        if scheme == "https" or service.tunnel == "ssl" or service.port in (443, 8443, 6443):
+
+        if scheme == "https" or service.tunnel == "ssl" or service.port in (443, 8443, 6443, 9443):
             return f"https://{host}:{service.port}"
+
+        if scheme == "http":
+            return f"http://{host}:{service.port}"
+
+        if service.port in (443, 8443, 6443, 9443):
+            return f"https://{host}:{service.port}"
+
         return f"http://{host}:{service.port}"
+
+    def _build_cmd(self, target: str, output_file: str) -> list[str]:
+        cmd = ["nuclei", "-u", target, "-jsonl", "-o", output_file]
+
+        if self.profile == "fast":
+            cmd.extend([
+                "-severity", "medium,high,critical",
+                "-etags", "fuzz,headless,dos",
+            ])
+
+        return cmd
 
     def scan(self, host: str, service: OpenPort, scheme: str = "auto") -> HostScanResult:
         result = HostScanResult(host=host)
@@ -34,14 +71,17 @@ class NucleiScanner:
             return result
         target = self.build_target(host, service, scheme=scheme)
         with tempfile.NamedTemporaryFile(prefix="nuclei-", suffix=".jsonl", delete=True) as tmp:
+            print(f"[DEBUG] running nuclei against: {target}")
+            cmd = self._build_cmd(target, tmp.name)
             proc = subprocess.run(
-                ["nuclei", "-u", target, "-jsonl", "-o", tmp.name],
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=self.timeout,
                 check=False,
             )
+
             if proc.returncode not in (0, 1):
                 result.add_error("nuclei", f"nuclei failed with exit code {proc.returncode}", proc.stderr.strip() or proc.stdout.strip())
                 return result

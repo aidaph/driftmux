@@ -3,7 +3,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from typing import List
 
-from auditbbox.models import Finding, HostScanResult, OpenPort
+from driftmux.models import Finding, HostScanResult, OpenPort
 
 
 class NmapXmlParser:

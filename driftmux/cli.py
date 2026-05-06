@@ -5,13 +5,13 @@ from pathlib import Path
 import click
 import pyfiglet
 
-from auditbbox.engine import AuditBBoxEngine, ScanConfig
-from auditbbox.renderers.console import render_console
-from auditbbox.utils import ensure_dir, read_hosts, write_csv, write_json, write_markdown
+from driftmux.engine import AuditBBoxEngine, ScanConfig
+from driftmux.renderers.console import render_console
+from driftmux.utils import ensure_dir, read_hosts, write_csv, write_json, write_markdown
 
 
 def banner() -> None:
-    click.echo(pyfiglet.figlet_format("AuditBBox"))
+    click.echo(pyfiglet.figlet_format("Driftmux"))
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
@@ -20,7 +20,7 @@ def banner() -> None:
 @click.option("--ports", help="Port selection for nmap, for example 1-1000 or 80,443,6443")
 @click.option("--nmap-script", help="Nmap NSE scripts to run, for example vulners or default,vulners")
 @click.option("--format", "output_format", type=click.Choice(["text", "json", "csv", "markdown"], case_sensitive=False), default="json")
-@click.option("--timeout", type=int, default=120, show_default=True, help="Timeout per external scanner")
+@click.option("--timeout", type=int, default=600, show_default=True, help="Timeout per external scanner")
 @click.option("--http-only", is_flag=True, help="Prefer HTTP targets for web scanners")
 @click.option("--https-only", is_flag=True, help="Prefer HTTPS targets for web scanners")
 @click.option("--output-dir", default="reports", show_default=True, help="Directory for generated reports")
@@ -54,7 +54,7 @@ def main(host_file: str | None, host: str | None, ports: str | None, nmap_script
     results = engine.scan_hosts(hosts)
 
     ensure_dir(output_dir)
-    out_base = Path(output_dir) / "auditbbox-report"
+    out_base = Path(output_dir) / "driftmux-report"
     if config.output_format == "json":
         path = write_json(out_base.with_suffix(".json"), results)
     elif config.output_format == "csv":

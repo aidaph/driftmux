@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from auditbbox.models import HostScanResult
+from driftmux.models import HostScanResult
 
 
 def ensure_dir(path: str | Path) -> Path:

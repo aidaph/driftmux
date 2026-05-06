@@ -3,10 +3,44 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, List
 
-from auditbbox.models import HostScanResult
-from auditbbox.scanners.nmap import NmapScanner
-from auditbbox.scanners.nuclei import NucleiScanner
-from auditbbox.scanners.plecost import PlecostScanner
+from driftmux.models import HostScanResult
+from driftmux.scanners.nmap import NmapScanner
+from driftmux.scanners.nuclei import NucleiScanner
+from driftmux.scanners.plecost import PlecostScanner
+
+WEB_PORTS = {80, 81, 443, 444, 591, 593, 8000, 8008, 8080, 8081, 8088, 8443, 8888, 9443}
+
+
+def is_web_candidate(service) -> bool:
+    svc = (getattr(service, "service", "") or "").lower()
+    product = (getattr(service, "product", "") or "").lower()
+    port = int(getattr(service, "port", 0) or 0)
+
+    if "http" in svc or "https" in svc:
+        return True
+
+    if any(x in product for x in ("apache", "nginx", "tomcat", "jetty", "nextcloud")):
+        return True
+
+    if port in WEB_PORTS:
+        return True
+
+    return False
+
+
+def guess_scheme(service, configured_scheme: str) -> str:
+    if configured_scheme in {"http", "https"}:
+        return configured_scheme
+
+    port = int(getattr(service, "port", 0) or 0)
+
+    if port in {443, 8443, 9443}:
+        return "https"
+
+    if port in {80, 81, 8000, 8008, 8080, 8081, 8088, 8888}:
+        return "http"
+
+    return "auto"
 
 
 @dataclass(slots=True)
@@ -15,6 +49,7 @@ class ScanConfig:
     nmap_script: str | None = None
     timeout: int = 120
     web_scheme: str = "auto"
+    nuclei_profile: str = "fast"
     output_format: str = "json"
     output_dir: str = "reports"
     log_dir: str = "logs"
@@ -24,29 +59,50 @@ class ScanConfig:
 class AuditBBoxEngine:
     def __init__(self, config: ScanConfig):
         self.config = config
-        self.nmap = NmapScanner(timeout=config.timeout, ports=config.ports, nmap_script=config.nmap_script)
-        self.nuclei = NucleiScanner(timeout=max(config.timeout, 180))
-        self.plecost = PlecostScanner(timeout=max(config.timeout, 180), mode=config.web_scheme, deep=config.deep_wordpress)
+        self.nmap = NmapScanner(
+            timeout=config.timeout,
+            ports=config.ports, 
+            nmap_script=config.nmap_script)
+        self.nuclei = NucleiScanner(
+            timeout=max(config.timeout, 180),
+            profile=getattr(config, "nuclei_profile", "fast"),
+        )
+        self.plecost = PlecostScanner(
+            timeout=max(config.timeout, 180), 
+            mode=config.web_scheme, 
+            deep=config.deep_wordpress)
 
     def scan_host(self, host: str) -> HostScanResult:
         discovery = self.nmap.scan(host)
-        final = HostScanResult(host=host, services=discovery.services.copy(), findings=discovery.findings.copy(), errors=discovery.errors.copy())
+        final = HostScanResult(
+            host=host, 
+            services=discovery.services.copy(), 
+            findings=discovery.findings.copy(),
+            errors=discovery.errors.copy())
         wp_done = False
         for service in discovery.services:
-            nuclei_result = self.nuclei.scan(host, service, scheme=self.config.web_scheme)
-            final.findings.extend(nuclei_result.findings)
-            final.errors.extend(nuclei_result.errors)
+            if is_web_candidate(service):
+                nuclei_result = self.nuclei.scan(
+                    host,
+                    service,
+                    scheme=guess_scheme(service, self.config.web_scheme),
+                )
+                final.findings.extend(nuclei_result.findings)
+                final.errors.extend(nuclei_result.errors)
+
             if not wp_done and self.plecost.maybe_wordpress(host, service):
                 plecost_result = self.plecost.scan(host, service)
                 final.findings.extend(plecost_result.findings)
                 final.errors.extend(plecost_result.errors)
                 final.metadata.update(plecost_result.metadata)
                 wp_done = True
+
         if not wp_done and self.plecost.maybe_wordpress(host):
             plecost_result = self.plecost.scan(host)
             final.findings.extend(plecost_result.findings)
             final.errors.extend(plecost_result.errors)
             final.metadata.update(plecost_result.metadata)
+
         return final
 
     def scan_hosts(self, hosts: Iterable[str]) -> list[HostScanResult]:

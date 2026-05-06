@@ -5,8 +5,8 @@ import subprocess
 from dataclasses import dataclass
 from typing import Optional
 
-from auditbbox.models import HostScanResult
-from auditbbox.parsers.nmap import NmapXmlParser
+from driftmux.models import HostScanResult
+from driftmux.parsers.nmap import NmapXmlParser
 
 
 @dataclass(slots=True)

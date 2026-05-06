@@ -10,7 +10,7 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 
-from auditbbox.models import Finding, HostScanResult, OpenPort
+from driftmux.models import Finding, HostScanResult, OpenPort
 
 
 @dataclass(slots=True)
@@ -30,7 +30,7 @@ class PlecostScanner:
                 candidates.append(f"https://{host}")
             if self.mode in ("auto", "http"):
                 candidates.append(f"http://{host}")
-        headers = {"User-Agent": "auditbbox/0.3"}
+        headers = {"User-Agent": "driftmux/0.3"}
         markers = ["/wp-content/", "/wp-includes/", "wp-json", "wp-login.php", "wordpress"]
         for url in candidates:
             try:
