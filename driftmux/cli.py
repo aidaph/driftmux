@@ -5,7 +5,7 @@ from pathlib import Path
 import click
 import pyfiglet
 
-from driftmux.engine import AuditBBoxEngine, ScanConfig
+from driftmux.engine import DriftmuxEngine, ScanConfig
 from driftmux.renderers.console import render_console
 from driftmux.utils import ensure_dir, read_hosts, write_csv, write_json, write_markdown
 
@@ -19,21 +19,87 @@ def banner() -> None:
 @click.option("--host", help="Single host or URL to scan")
 @click.option("--ports", help="Port selection for nmap, for example 1-1000 or 80,443,6443")
 @click.option("--nmap-script", help="Nmap NSE scripts to run, for example vulners or default,vulners")
-@click.option("--format", "output_format", type=click.Choice(["text", "json", "csv", "markdown"], case_sensitive=False), default="json")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json", "csv", "markdown"], case_sensitive=False),
+    default="json",
+)
 @click.option("--timeout", type=int, default=600, show_default=True, help="Timeout per external scanner")
 @click.option("--http-only", is_flag=True, help="Prefer HTTP targets for web scanners")
 @click.option("--https-only", is_flag=True, help="Prefer HTTPS targets for web scanners")
 @click.option("--output-dir", default="reports", show_default=True, help="Directory for generated reports")
 @click.option("--log-dir", default="logs", show_default=True, help="Directory for scan logs")
 @click.option("--deep-wordpress", is_flag=True, help="Enable Plecost deep mode for WordPress")
-def main(host_file: str | None, host: str | None, ports: str | None, nmap_script: str | None, output_format: str, timeout: int, http_only: bool, https_only: bool, output_dir: str, log_dir: str, deep_wordpress: bool) -> None:
+@click.option(
+    "--profile",
+    "nuclei_profile",
+    type=click.Choice(["passive", "fast", "deep"], case_sensitive=False),
+    default="fast",
+    show_default=True,
+    help="Scan profile. passive disables Nuclei; fast/deep run Nuclei.",
+)
+@click.option(
+    "--vuln-backend",
+    type=click.Choice(["none", "nvd"], case_sensitive=False),
+    default="none",
+    show_default=True,
+    help="Passive vulnerability backend.",
+)
+@click.option(
+    "--min-cvss",
+    type=float,
+    default=0.0,
+    show_default=True,
+    help="Minimum CVSS score for passive vulnerability findings.",
+)
+@click.option(
+    "--nvd-api-key",
+    default=None,
+    help="NVD API key. If omitted, Driftmux also checks the NVD_API_KEY environment variable.",
+)
+@click.option(
+    "--nvd-cache",
+    default="~/.cache/driftmux/nvd.sqlite",
+    show_default=True,
+    help="SQLite cache path for NVD responses.",
+)
+@click.option(
+    "--nvd-cache-ttl-hours",
+    type=int,
+    default=168,
+    show_default=True,
+    help="How long cached NVD responses remain valid.",
+)
+def main(
+    host_file: str | None,
+    host: str | None,
+    ports: str | None,
+    nmap_script: str | None,
+    output_format: str,
+    timeout: int,
+    http_only: bool,
+    https_only: bool,
+    output_dir: str,
+    log_dir: str,
+    deep_wordpress: bool,
+    nuclei_profile: str,
+    vuln_backend: str,
+    min_cvss: float,
+    nvd_api_key: str | None,
+    nvd_cache: str,
+    nvd_cache_ttl_hours: int,
+) -> None:
     if not host and not host_file:
         raise click.UsageError("Provide --host or --host-file")
+
     if http_only and https_only:
         raise click.UsageError("Use only one of --http-only or --https-only")
 
     banner()
+
     scheme = "auto"
+
     if http_only:
         scheme = "http"
     elif https_only:
@@ -44,17 +110,27 @@ def main(host_file: str | None, host: str | None, ports: str | None, nmap_script
         nmap_script=nmap_script,
         timeout=timeout,
         web_scheme=scheme,
+        nuclei_profile=nuclei_profile.lower(),
         output_format=output_format.lower(),
         output_dir=output_dir,
         log_dir=log_dir,
         deep_wordpress=deep_wordpress,
+        vuln_backend=vuln_backend.lower(),
+        min_cvss=min_cvss,
+        nvd_api_key=nvd_api_key,
+        nvd_cache=nvd_cache,
+        nvd_cache_ttl_hours=nvd_cache_ttl_hours,
     )
+
     hosts = read_hosts(host_file=host_file, host=host)
-    engine = AuditBBoxEngine(config)
+
+    engine = DriftmuxEngine(config)
     results = engine.scan_hosts(hosts)
 
     ensure_dir(output_dir)
+
     out_base = Path(output_dir) / "driftmux-report"
+
     if config.output_format == "json":
         path = write_json(out_base.with_suffix(".json"), results)
     elif config.output_format == "csv":
@@ -65,6 +141,7 @@ def main(host_file: str | None, host: str | None, ports: str | None, nmap_script
         path = None
 
     render_console(results)
+
     if path:
         click.echo(f"\nSaved report to {path}")
 

@@ -27,7 +27,11 @@ class NmapXmlParser:
                     version=(service_el.get("version", "") if service_el is not None else ""),
                     extrainfo=(service_el.get("extrainfo", "") if service_el is not None else ""),
                     tunnel=(service_el.get("tunnel", "") if service_el is not None else ""),
-                    cpes=[cpe.text for cpe in port.findall("service/cpe") if cpe.text],
+                    cpes=[
+                        cpe.text.strip()
+                        for cpe in port.findall("service/cpe")
+                        if cpe.text and cpe.text.strip()
+                    ],                
                 )
                 service.classifications = classify_service(service)
                 result.services.append(service)

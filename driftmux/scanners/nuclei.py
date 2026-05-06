@@ -1,3 +1,5 @@
+# driftmux/scanners/nuclei.py
+
 from __future__ import annotations
 
 import json
@@ -7,108 +9,162 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from driftmux.models import Finding, HostScanResult, OpenPort
+from driftmux.models import Finding, HostScanResult
+from driftmux.planner import NucleiTarget
+
 
 @dataclass(slots=True)
 class NucleiScanner:
     timeout: int = 180
-    profile: str = "fast"  # fast | deep
+    profile: str = "fast"
 
-    def should_scan(self, service: OpenPort) -> bool:
-        labels = {label.lower() for label in (service.classifications or [])}
-        svc = (service.service or "").lower()
-        product = (service.product or "").lower()
-        port = int(service.port or 0)
-
-        web_ports = {80, 81, 443, 444, 591, 593, 8000, 8008, 8080, 8081, 8088, 8443, 8888, 9443}
-
-        if any(label in labels for label in ["http", "apache-httpd", "nginx", "kubernetes"]):
-            return True
-
-        if "http" in svc or "https" in svc:
-            return True
-
-        if any(x in product for x in ["apache", "nginx", "tomcat", "jetty", "nextcloud", "kubernetes"]):
-            return True
-
-        if port in web_ports:
-            return True
-
-        return False
-
-    def build_target(self, host: str, service: OpenPort, scheme: str = "auto") -> str:
-        if host.startswith(("http://", "https://")):
-            return host
-
-        if scheme == "https" or service.tunnel == "ssl" or service.port in (443, 8443, 6443, 9443):
-            return f"https://{host}:{service.port}"
-
-        if scheme == "http":
-            return f"http://{host}:{service.port}"
-
-        if service.port in (443, 8443, 6443, 9443):
-            return f"https://{host}:{service.port}"
-
-        return f"http://{host}:{service.port}"
-
-    def _build_cmd(self, target: str, output_file: str) -> list[str]:
-        cmd = ["nuclei", "-u", target, "-jsonl", "-o", output_file]
+    def _profile_args(self) -> list[str]:
+        if self.profile == "passive":
+            return []
 
         if self.profile == "fast":
-            cmd.extend([
+            return [
+                "-severity", "high,critical",
+                "-etags", "fuzz,headless,dos,bruteforce,intrusive",
+                "-ss", "host-spray",
+                "-c", "10",
+                "-rl", "25",
+            ]
+
+        if self.profile == "deep":
+            return [
                 "-severity", "medium,high,critical",
-                "-etags", "fuzz,headless,dos",
-                "-ss","host-spray",
-                "-c","10"
-            ])
+                "-etags", "dos,bruteforce",
+                "-ss", "host-spray",
+                "-c", "25",
+                "-rl", "75",
+            ]
+
+        return []
+
+    def _build_cmd(
+        self,
+        targets_file: str,
+        output_file: str,
+        tags: set[str] | None = None,
+    ) -> list[str]:
+        cmd = [
+            "nuclei",
+            "-l", targets_file,
+            "-jsonl",
+            "-o", output_file,
+        ]
+
+        cmd.extend(self._profile_args())
+
+        if tags:
+            cmd.extend(["-tags", ",".join(sorted(tags))])
 
         return cmd
 
-    def scan(self, host: str, service: OpenPort, scheme: str = "auto") -> HostScanResult:
+    def scan_many(self, host: str, targets: list[NucleiTarget]) -> HostScanResult:
         result = HostScanResult(host=host)
-        if not self.should_scan(service):
+
+        if not targets:
             return result
+
+        if self.profile == "passive":
+            return result
+
         if not shutil.which("nuclei"):
             result.add_error("nuclei", "nuclei not found in PATH")
             return result
-        target = self.build_target(host, service, scheme=scheme)
-        with tempfile.NamedTemporaryFile(prefix="nuclei-", suffix=".jsonl", delete=True) as tmp:
-            print(f"[DEBUG] running nuclei against: {target}")
-            cmd = self._build_cmd(target, tmp.name)
-            proc = subprocess.run(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=self.timeout,
-                check=False,
-            )
 
-            if proc.returncode not in (0, 1):
-                result.add_error("nuclei", f"nuclei failed with exit code {proc.returncode}", proc.stderr.strip() or proc.stdout.strip())
-                return result
-            findings: list[Finding] = []
-            output_path = Path(tmp.name)
-            if output_path.exists() and output_path.read_text(encoding="utf-8", errors="ignore").strip():
+        # Agrupar por conjunto de tags para no lanzar todo el catálogo contra todo.
+        grouped: dict[tuple[str, ...], list[NucleiTarget]] = {}
+
+        for target in targets:
+            key = tuple(sorted(target.tags))
+            grouped.setdefault(key, []).append(target)
+
+        for tag_tuple, group in grouped.items():
+            self._scan_group(result, group, set(tag_tuple))
+
+        return result
+
+    def _scan_group(
+        self,
+        result: HostScanResult,
+        targets: list[NucleiTarget],
+        tags: set[str],
+    ) -> None:
+        url_to_target = {target.url: target for target in targets}
+
+        with tempfile.NamedTemporaryFile("w", prefix="nuclei-targets-", suffix=".txt", delete=True) as targets_tmp:
+            for target in targets:
+                targets_tmp.write(target.url + "\n")
+            targets_tmp.flush()
+
+            with tempfile.NamedTemporaryFile(prefix="nuclei-", suffix=".jsonl", delete=True) as out_tmp:
+                cmd = self._build_cmd(
+                    targets_file=targets_tmp.name,
+                    output_file=out_tmp.name,
+                    tags=tags,
+                )
+
+                proc = subprocess.run(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=self.timeout,
+                    check=False,
+                )
+
+                if proc.returncode not in (0, 1):
+                    result.add_error(
+                        "nuclei",
+                        f"nuclei failed with exit code {proc.returncode}",
+                        proc.stderr.strip() or proc.stdout.strip(),
+                    )
+                    return
+
+                output_path = Path(out_tmp.name)
+
+                if not output_path.exists():
+                    return
+
                 for line in output_path.read_text(encoding="utf-8", errors="ignore").splitlines():
                     try:
                         item = json.loads(line)
                     except json.JSONDecodeError:
                         continue
+
                     info = item.get("info", {})
-                    findings.append(Finding(
-                        scanner="nuclei",
-                        host=host,
-                        title=info.get("name") or item.get("template-id") or "Nuclei finding",
-                        severity=(info.get("severity") or "info").lower(),
-                        description=info.get("description") or item.get("matcher-name") or "",
-                        evidence=json.dumps(item, ensure_ascii=False)[:4000],
-                        confidence="high" if item.get("matched-at") else "medium",
-                        port=service.port,
-                        service=service.service,
-                        detected_version=service.version or None,
-                        reference=(info.get("reference") or [None])[0] if isinstance(info.get("reference"), list) else info.get("reference"),
-                        metadata=item,
-                    ))
-            result.findings.extend(findings)
-        return result
+                    matched_at = item.get("matched-at") or item.get("host") or ""
+                    target = self._resolve_target(matched_at, url_to_target)
+
+                    result.findings.append(
+                        Finding(
+                            scanner="nuclei",
+                            host=result.host,
+                            title=info.get("name") or item.get("template-id") or "Nuclei finding",
+                            severity=(info.get("severity") or "info").lower(),
+                            description=info.get("description") or item.get("matcher-name") or "",
+                            evidence=json.dumps(item, ensure_ascii=False)[:4000],
+                            confidence="high" if item.get("matched-at") else "medium",
+                            port=target.service.port if target else None,
+                            service=target.service.service if target else None,
+                            detected_version=target.service.version if target else None,
+                            reference=self._first_reference(info.get("reference")),
+                            metadata=item,
+                        )
+                    )
+
+    @staticmethod
+    def _first_reference(value):
+        if isinstance(value, list):
+            return value[0] if value else None
+        return value
+
+    @staticmethod
+    def _resolve_target(matched_at: str, url_to_target: dict[str, NucleiTarget]) -> NucleiTarget | None:
+        for url, target in url_to_target.items():
+            if matched_at.startswith(url):
+                return target
+        return None
