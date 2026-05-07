@@ -59,8 +59,6 @@ def expand_targets(target: str, max_hosts: int = 256) -> list[str]:
     - comma-separated values: 192.168.1.0/30,example.org
     """
 
-    import ipaddress
-
     raw_targets = [item.strip() for item in target.split(",") if item.strip()]
     expanded: list[str] = []
 
@@ -122,7 +120,7 @@ def collect_scan_hosts(
     expanded: list[str] = []
 
     for raw_target in raw_targets:
-        expanded.extend(expand_target(raw_target, max_hosts=max_hosts))
+        expanded.extend(expand_targets(raw_target, max_hosts=max_hosts))
 
     seen: set[str] = set()
     unique: list[str] = []

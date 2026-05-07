@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
 
 from driftmux.planner import build_scan_plan
 from driftmux.models import HostScanResult
@@ -9,6 +8,7 @@ from driftmux.scanners.nmap import NmapScanner
 from driftmux.scanners.nuclei import NucleiScanner
 from driftmux.scanners.nvd import NvdConfig, NvdCveScanner
 from driftmux.scanners.plecost import PlecostScanner
+from driftmux.utils import collect_scan_hosts
 
 
 WEB_PORTS = {
@@ -148,7 +148,6 @@ class DriftmuxEngine:
 
         return final
 
-
     def scan_hosts(self, hosts: list[str]) -> list[HostScanResult]:
         results: list[HostScanResult] = []
 
@@ -216,6 +215,3 @@ class DriftmuxEngine:
             final.findings.extend(plecost_result.findings)
             final.errors.extend(plecost_result.errors)
             final.metadata.update(plecost_result.metadata)
-
-    def scan_hosts(self, hosts: Iterable[str]) -> list[HostScanResult]:
-        return [self.scan_host(host) for host in hosts]
