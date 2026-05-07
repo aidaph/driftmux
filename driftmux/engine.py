@@ -148,6 +148,31 @@ class DriftmuxEngine:
 
         return final
 
+
+    def scan_hosts(self, hosts: list[str]) -> list[HostScanResult]:
+        results: list[HostScanResult] = []
+
+        for host in hosts:
+            results.append(self.scan(host))
+
+        return results
+
+
+    def scan_targets(
+        self,
+        *,
+        host: str | None = None,
+        targets: str | None = None,
+        max_hosts: int = 256,
+    ) -> list[HostScanResult]:
+        scan_hosts = collect_scan_hosts(
+            host=host,
+            targets=targets,
+            max_hosts=max_hosts,
+        )
+
+        return self.scan_hosts(scan_hosts)
+
     def _run_nuclei(
             self,
             host: str,

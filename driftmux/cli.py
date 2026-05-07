@@ -7,7 +7,7 @@ import pyfiglet
 
 from driftmux.engine import DriftmuxEngine, ScanConfig
 from driftmux.renderers.console import render_console
-from driftmux.utils import ensure_dir, read_hosts, write_csv, write_json, write_markdown
+from driftmux.utils import ensure_dir, read_hosts, expand_targets, write_csv, write_json, write_markdown
 
 
 def banner() -> None:
@@ -15,22 +15,63 @@ def banner() -> None:
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
-@click.option("--host-file", type=click.Path(exists=True, dir_okay=False), help="File with one host per line")
-@click.option("--host", help="Single host or URL to scan")
-@click.option("--ports", help="Port selection for nmap, for example 1-1000 or 80,443,6443")
-@click.option("--nmap-script", help="Nmap NSE scripts to run, for example vulners or default,vulners")
+@click.option(
+    "--host-file", 
+    type=click.Path(exists=True, dir_okay=False), 
+    help="File with one host per line")
+@click.option(
+    "--host", 
+    help="Single host, IP adsress or URL to scan")
+@click.option(
+    "--target",
+    help="Target host, IP address, hostname or CIDR subnet to scan",
+)
+@click.option(
+    "--max-hosts",
+    type=int,
+    default=256,
+    show_default=True,
+    help="Maximum number of hosts allowed when expanding CIDR targets.",
+)
+@click.option(
+    "--ports", 
+    help="Port selection for nmap, for example 1-1000 or 80,443,6443")
+@click.option(
+    "--nmap-script", 
+    help="Nmap NSE scripts to run, for example vulners or default,vulners")
 @click.option(
     "--format",
     "output_format",
-    type=click.Choice(["text", "json", "csv", "markdown"], case_sensitive=False),
-    default="json",
-)
-@click.option("--timeout", type=int, default=600, show_default=True, help="Timeout per external scanner")
-@click.option("--http-only", is_flag=True, help="Prefer HTTP targets for web scanners")
-@click.option("--https-only", is_flag=True, help="Prefer HTTPS targets for web scanners")
-@click.option("--output-dir", default="reports", show_default=True, help="Directory for generated reports")
-@click.option("--log-dir", default="logs", show_default=True, help="Directory for scan logs")
-@click.option("--deep-wordpress", is_flag=True, help="Enable Plecost deep mode for WordPress")
+    type=click.Choice(["text", "json", "csv", "markdown"], 
+    case_sensitive=False),
+    default="json")
+@click.option(
+    "--timeout", 
+    type=int, 
+    default=600, 
+    show_default=True, 
+    help="Timeout per external scanner")
+@click.option(
+    "--http-only", 
+    is_flag=True, 
+    help="Prefer HTTP targets for web scanners")
+@click.option(
+    "--https-only", 
+    is_flag=True, 
+    help="Prefer HTTPS targets for web scanners")
+@click.option(
+    "--output-dir", 
+    default="reports", show_default=True, 
+    help="Directory for generated reports")
+@click.option(
+    "--log-dir", 
+    default="logs", 
+    show_default=True, 
+    help="Directory for scan logs")
+@click.option(
+    "--deep-wordpress", 
+    is_flag=True, 
+    help="Enable Plecost deep mode for WordPress")
 @click.option(
     "--profile",
     "nuclei_profile",
@@ -74,6 +115,8 @@ def banner() -> None:
 def main(
     host_file: str | None,
     host: str | None,
+    target: str | None,
+    max_hosts: int,
     ports: str | None,
     nmap_script: str | None,
     output_format: str,
@@ -90,8 +133,8 @@ def main(
     nvd_cache: str,
     nvd_cache_ttl_hours: int,
 ) -> None:
-    if not host and not host_file:
-        raise click.UsageError("Provide --host or --host-file")
+    if not host and not host_file and not target:
+        raise click.UsageError("Provide one of --host, --host-file or --target.")
 
     if http_only and https_only:
         raise click.UsageError("Use only one of --http-only or --https-only")
@@ -122,7 +165,25 @@ def main(
         nvd_cache_ttl_hours=nvd_cache_ttl_hours,
     )
 
-    hosts = read_hosts(host_file=host_file, host=host)
+    hosts: list[str] = []
+
+    if host_file:
+        hosts.extend(read_hosts(host_file=host_file, host=None))
+
+    if host:
+        hosts.append(host)
+
+    if target:
+        try:
+            hosts.extend(expand_targets(target, max_hosts=max_hosts))
+        except ValueError as exc:
+            raise click.UsageError(str(exc)) from exc
+
+    seen: set[str] = set()
+    hosts = [item for item in hosts if not (item in seen or seen.add(item))]
+
+    if not hosts:
+        raise click.UsageError("No valid hosts were provided.")
 
     engine = DriftmuxEngine(config)
     results = engine.scan_hosts(hosts)
