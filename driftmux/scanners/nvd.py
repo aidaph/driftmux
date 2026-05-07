@@ -215,7 +215,7 @@ class NvdCveScanner:
         payload: dict[str, Any],
     ) -> list[Finding]:
         findings: list[Finding] = []
-        suppressed: list[dict] = []
+        supressed: list[dict] = []
 
         vulnerabilities = payload.get("vulnerabilities") or []
 
