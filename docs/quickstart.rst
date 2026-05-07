@@ -14,7 +14,7 @@ Scan a specific IP:
 
 .. code-block:: bash
 
-   driftmux --host 193.146.75.190
+   driftmux --host 205.87.65.183
 
 Specify ports manually
 ----------------------
@@ -24,7 +24,7 @@ ports explicitly:
 
 .. code-block:: bash
 
-   driftmux --host 193.146.75.190 --ports 80,443,8443
+   driftmux --host example.org --ports 80,443,22
 
 This avoids relying on a discovery pass and tells Nmap exactly which ports should
 be inspected.

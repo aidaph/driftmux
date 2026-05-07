@@ -134,7 +134,7 @@ driftmux --host example.org
 Scan a specific IP:
 
 ```bash
-driftmux --host 193.146.75.190
+driftmux --host example.org
 ```
 
 Scan known ports:
