@@ -79,11 +79,13 @@ A typical console result looks like this:
 
 .. code-block:: text
 
-   [193.146.75.190]
-   Services: 3 | Findings: 0 | Errors: 0
-     - 80/tcp     tcpwrapped     [generic]
-     - 443/tcp    tcpwrapped     [generic]
-     - 8443/tcp   tcpwrapped     [generic]
+[205.87.65.183]
+Services: 1 | Findings: 4 | Errors: 1
+  - 22/tcp     ssh          OpenSSH 9.6p1 Ubuntu 3ubuntu13.16 [ssh]
+  * CRITICAL nvd: CVE-2008-3844 affects OpenSSH
+  * HIGH nvd: CVE-2024-6387 affects OpenSSH
+  * HIGH nvd: CVE-2026-35385 affects OpenSSH
+  * HIGH nvd: CVE-2023-51767 affects OpenSSH
 
 The JSON report is saved under:
 
