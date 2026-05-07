@@ -92,7 +92,7 @@ class NvdCveScanner:
 
         return result
 
-    def is_actionable_cpe(cpe: str) -> bool:
+    def is_actionable_cpe(self, cpe: str) -> bool:
         parts = cpe.split(":")
 
         # CPE 2.3 esperado:
@@ -167,7 +167,7 @@ class NvdCveScanner:
 
         return response.json()
 
-    def should_suppress_cve_for_service(service, cve_id: str) -> tuple[bool, str]:
+    def should_suppress_cve_for_service(self, service, cve_id: str) -> tuple[bool, str]:
         product = (service.product or "").lower()
         version = (service.version or "").lower()
         extrainfo = (service.extrainfo or "").lower()
