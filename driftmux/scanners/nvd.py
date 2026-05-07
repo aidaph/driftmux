@@ -101,7 +101,7 @@ class NvdCveScanner:
             return False
 
         cpe_part = parts[2]
-        vendor = parts[3]
+        #vendor = parts[3]
         product = parts[4]
         version = parts[5]
 
@@ -215,6 +215,7 @@ class NvdCveScanner:
         payload: dict[str, Any],
     ) -> list[Finding]:
         findings: list[Finding] = []
+        suppressed: list[dict] = []
 
         vulnerabilities = payload.get("vulnerabilities") or []
 
@@ -239,10 +240,10 @@ class NvdCveScanner:
             published = cve.get("published")
             last_modified = cve.get("lastModified")
 
-            suppress, reason = should_suppress_cve_for_service(service, cve_id)
+            suppress, reason = self.should_suppress_cve_for_service(service, cve_id)
 
             if suppress:
-                result.metadata.setdefault("nvd_suppressed", []).append(
+                supressed.append(
                     {
                         "cve": cve_id,
                         "port": service.port,
