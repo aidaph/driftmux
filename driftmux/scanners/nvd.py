@@ -92,10 +92,38 @@ class NvdCveScanner:
 
         return result
 
+    def is_actionable_cpe(cpe: str) -> bool:
+        parts = cpe.split(":")
+
+        # CPE 2.3 esperado:
+        # cpe:2.3:a:vendor:product:version:...
+        if len(parts) < 6:
+            return False
+
+        cpe_part = parts[2]
+        vendor = parts[3]
+        product = parts[4]
+        version = parts[5]
+
+        if version in {"*", "-", ""}:
+            return False
+
+        # Evita CPEs de sistema operativo demasiado genéricos
+        if cpe_part == "o" and product in {"linux_kernel", "linux"}:
+            return False
+
+        # Evita productos vacíos o genéricos
+        if product in {"*", "-", ""}:
+            return False
+
+        return True
+
     def _service_cpes(self, service: OpenPort) -> list[str]:
         normalized: list[str] = []
 
         for cpe in service.cpes:
+            if not is_actionable_cpe(cpe):
+                continue
             cpe23 = normalize_cpe_to_23(cpe)
             if cpe23 and cpe23 not in normalized:
                 normalized.append(cpe23)
@@ -139,6 +167,46 @@ class NvdCveScanner:
 
         return response.json()
 
+    def should_suppress_cve_for_service(service, cve_id: str) -> tuple[bool, str]:
+        product = (service.product or "").lower()
+        version = (service.version or "").lower()
+        extrainfo = (service.extrainfo or "").lower()
+        service_name = (service.service or "").lower()
+
+        text = " ".join(
+            [
+                service_name,
+                product,
+                version,
+                extrainfo,
+                " ".join(service.cpes or []),
+            ]
+        ).lower()
+
+        if "openssh" in text:
+            # CVE antiguo específico de paquetes Red Hat comprometidos en 2008.
+            # No aplica a OpenSSH moderno en Ubuntu.
+            if cve_id == "CVE-2008-3844" and "ubuntu" in text:
+                return True, "Red Hat-specific 2008 package issue; not applicable to Ubuntu OpenSSH"
+
+            # Ubuntu 24.04 corrigió CVE-2024-6387 en 1:9.6p1-3ubuntu13.3.
+            # Si el banner muestra 3ubuntu13.16, está por encima.
+            if cve_id == "CVE-2024-6387" and "ubuntu" in text:
+                marker = "3ubuntu13."
+                if marker in text:
+                    try:
+                        patch = int(text.split(marker, 1)[1].split()[0])
+                        if patch >= 3:
+                            return True, "Ubuntu OpenSSH package appears patched for CVE-2024-6387"
+                    except ValueError:
+                        pass
+
+            # CVE disputado/con amenaza muy específica; mejor no mostrar como HIGH directo.
+            if cve_id == "CVE-2023-51767":
+                return True, "Disputed OpenSSH issue with specific Rowhammer/co-location threat model"
+
+        return False, ""
+
     def _payload_to_findings(
         self,
         host: str,
@@ -170,6 +238,19 @@ class NvdCveScanner:
 
             published = cve.get("published")
             last_modified = cve.get("lastModified")
+
+            suppress, reason = should_suppress_cve_for_service(service, cve_id)
+
+            if suppress:
+                result.metadata.setdefault("nvd_suppressed", []).append(
+                    {
+                        "cve": cve_id,
+                        "port": service.port,
+                        "service": service.service,
+                        "reason": reason,
+                    }
+                )
+                continue
 
             findings.append(
                 Finding(
