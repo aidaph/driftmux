@@ -53,6 +53,11 @@ dev = [
 include = ["driftmux*"]
 exclude = ["tests*", "docs*", "databases*"]
 
+[project.urls]
+Homepage = "https://driftmux.readthedocs.io/en/latest/"
+Repository = "https://github.com/aidaph/driftmux"
+Issues = "https://github.com/aidaph/driftmux/issues"
+
 [project.scripts]
 driftmux = "driftmux.cli:main"
 
