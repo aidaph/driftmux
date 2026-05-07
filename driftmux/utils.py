@@ -32,20 +32,12 @@ def read_hosts(host_file: str | None = None, host: str | None = None) -> list[st
     return deduped
 
 
-def split_csv_values(values: list[str] | None) -> list[str]:
-    """Split comma-separated CLI values while preserving order."""
-    if not values:
+def split_csv_values(value: str | None) -> list[str]:
+    if not value:
         return []
 
-    items: list[str] = []
+    return [item.strip() for item in value.split(",") if item.strip()]
 
-    for value in values:
-        for item in value.split(","):
-            item = item.strip()
-            if item:
-                items.append(item)
-
-    return items
 
 
 def expand_targets(target: str, max_hosts: int = 256) -> list[str]:
@@ -59,7 +51,7 @@ def expand_targets(target: str, max_hosts: int = 256) -> list[str]:
     - comma-separated values: 192.168.1.0/30,example.org
     """
 
-    raw_targets = [item.strip() for item in target.split(",") if item.strip()]
+    raw_targets = split_csv_values(target)
     expanded: list[str] = []
 
     for raw_target in raw_targets:
@@ -73,65 +65,59 @@ def expand_targets(target: str, max_hosts: int = 256) -> list[str]:
             expanded.append(str(network.network_address))
             continue
 
-        hosts = [str(ip) for ip in network.hosts()]
+        hosts: list[str] = []
 
-        if len(hosts) > max_hosts:
-            raise ValueError(
-                f"Target {raw_target} expands to {len(hosts)} hosts; "
-                f"maximum allowed is {max_hosts}."
-            )
+        for ip in network.hosts():
+            if len(hosts) >= max_hosts:
+                break
+
+            hosts.append(str(ip))
 
         expanded.extend(hosts)
 
-    seen: set[str] = set()
-    return [item for item in expanded if not (item in seen or seen.add(item))]
+    return deduplicate_preserving_order(expanded)
 
 def collect_scan_hosts(
     *,
     host: str | None = None,
-    hosts: list[str] | None = None,
-    target: str | None = None,
-    targets: list[str] | None = None,
+    targets: str | None = None,
     max_hosts: int = 256,
 ) -> list[str]:
     """
-    Collect and expand all CLI host/target inputs into a unique host list.
-
-    Accepted inputs:
-    - --host: one host
-    - --target: one host or CIDR
+    Collect CLI inputs from --host and --target into a unique host list.
     """
 
     raw_targets: list[str] = []
 
     if host:
-        raw_targets.append(host)
+        raw_targets.append(host.strip())
 
-    raw_targets.extend(split_csv_values(hosts))
-
-    if target:
-        raw_targets.append(target)
-
-    raw_targets.extend(split_csv_values(targets))
+    if targets:
+        raw_targets.extend(split_csv_values(targets))
 
     if not raw_targets:
-        raise ValueError("At least one of --host, --hosts, --target or --targets is required.")
+        raise ValueError("One of --host or --target is required.")
 
     expanded: list[str] = []
 
     for raw_target in raw_targets:
         expanded.extend(expand_targets(raw_target, max_hosts=max_hosts))
 
+    return deduplicate_preserving_order(expanded)
+
+
+def deduplicate_preserving_order(values: list[str]) -> list[str]:
     seen: set[str] = set()
     unique: list[str] = []
 
-    for item in expanded:
-        if item in seen:
+    for value in values:
+        if value in seen:
             continue
-        seen.add(item)
-        unique.append(item)
+        seen.add(value)
+        unique.append(value)
 
     return unique
+
 
 def write_json(path: str | Path, results: Sequence[HostScanResult]) -> Path:
     target = Path(path)

@@ -58,6 +58,12 @@ def test_collect_scan_hosts_requires_input():
         collect_scan_hosts()
 
 
-def test_expand_too_large():
-    with pytest.raises(ValueError):
-        expand_targets("192.168.0.0/16", max_hosts=256)
+def test_expand_too_large_limits_hosts():
+    hosts = expand_targets("192.168.0.0/16", max_hosts=4)
+
+    assert hosts == [
+        "192.168.0.1",
+        "192.168.0.2",
+        "192.168.0.3",
+        "192.168.0.4",
+    ]
