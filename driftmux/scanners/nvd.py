@@ -122,7 +122,7 @@ class NvdCveScanner:
         normalized: list[str] = []
 
         for cpe in service.cpes:
-            if not is_actionable_cpe(cpe):
+            if not self.is_actionable_cpe(cpe):
                 continue
             cpe23 = normalize_cpe_to_23(cpe)
             if cpe23 and cpe23 not in normalized:
