@@ -1,6 +1,6 @@
 import pytest
 
-from driftmux.utils import collect_scan_hosts, expand_targetis, split_csv_values
+from driftmux.utils import collect_scan_hosts, expand_targets, split_csv_values
 
 
 def test_split_csv_values():
@@ -8,18 +8,18 @@ def test_split_csv_values():
 
 
 def test_expand_single_ip():
-    assert expand_target("192.168.1.10") == ["192.168.1.10"]
+    assert expand_targets("192.168.1.10") == ["192.168.1.10"]
 
 
 def test_expand_cidr():
-    assert expand_target("192.168.1.0/30") == [
+    assert expand_targets("192.168.1.0/30") == [
         "192.168.1.1",
         "192.168.1.2",
     ]
 
 
 def test_expand_hostname():
-    assert expand_target("example.org") == ["example.org"]
+    assert expand_targets("example.org") == ["example.org"]
 
 
 def test_collect_scan_hosts_from_host():
