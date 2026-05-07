@@ -1,6 +1,6 @@
 import pytest
 
-from driftmux.utils import collect_scan_hosts, expand_target, split_csv_values
+from driftmux.utils import collect_scan_hosts, expand_targetis, split_csv_values
 
 
 def test_split_csv_values():
