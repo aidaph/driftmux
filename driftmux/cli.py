@@ -194,15 +194,13 @@ def main(
         report_name = f"driftmux-report-{safe_filename(results[0].host)}"
     else:
         report_name = "driftmux-report-multiple-hosts"
-
-    out_base = Path(output_dir) / report_name
-
+        
     if config.output_format == "json":
-        path = write_json(out_base.with_suffix(".json"), results)
+        path = write_json(Path(output_dir) / f"{report_name}.json", results)
     elif config.output_format == "csv":
-        path = write_csv(out_base.with_suffix(".csv"), results)
+        path = write_csv(Path(output_dir) / f"{report_name}.csv", results)
     elif config.output_format == "markdown":
-        path = write_markdown(out_base.with_suffix(".md"), results)
+        path = write_markdown(Path(output_dir) / f"{report_name}.md", results)
     else:
         path = None
 

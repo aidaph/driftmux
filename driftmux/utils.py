@@ -121,15 +121,21 @@ def deduplicate_preserving_order(values: list[str]) -> list[str]:
 
 def safe_filename(value: str) -> str:
     """
-    Convert a host/URL/IP into a filesystem-safe filename fragment.
+    Convert a host, IP or URL into a filesystem-safe filename fragment.
     """
     value = value.strip()
-    value = value.replace("http://", "")
-    value = value.replace("https://", "")
+    value = value.removeprefix("http://")
+    value = value.removeprefix("https://")
+    value = value.rstrip("/")
+
+    # Evita problemas con puertos, rutas o caracteres raros.
     value = value.replace("/", "_")
     value = value.replace(":", "_")
 
-    return re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
+    # Mantiene puntos para IPs/FQDNs.
+    value = re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
+
+    return value.strip("._-") or "unknown"
 
 
 def write_json(path: str | Path, results: Sequence[HostScanResult]) -> Path:
