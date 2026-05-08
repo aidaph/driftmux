@@ -156,6 +156,9 @@ class DriftmuxEngine:
 
         return results
 
+    def scan(self, host: str) -> HostScanResult:
+        return self.scan_host(host)
+
 
     def scan_targets(
         self,

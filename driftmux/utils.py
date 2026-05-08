@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import ipaddress
 import json
+import re
 from pathlib import Path
 from typing import Sequence
 
@@ -117,6 +118,18 @@ def deduplicate_preserving_order(values: list[str]) -> list[str]:
         unique.append(value)
 
     return unique
+
+def safe_filename(value: str) -> str:
+    """
+    Convert a host/URL/IP into a filesystem-safe filename fragment.
+    """
+    value = value.strip()
+    value = value.replace("http://", "")
+    value = value.replace("https://", "")
+    value = value.replace("/", "_")
+    value = value.replace(":", "_")
+
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
 
 
 def write_json(path: str | Path, results: Sequence[HostScanResult]) -> Path:

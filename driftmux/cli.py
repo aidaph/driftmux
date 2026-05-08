@@ -7,7 +7,7 @@ import pyfiglet
 
 from driftmux.engine import DriftmuxEngine, ScanConfig
 from driftmux.renderers.console import render_console
-from driftmux.utils import ensure_dir, read_hosts, expand_targets, write_csv, write_json, write_markdown
+from driftmux.utils import ensure_dir, read_hosts, expand_targets, safe_filename, write_csv, write_json, write_markdown
 
 
 def banner() -> None:
@@ -190,7 +190,12 @@ def main(
 
     ensure_dir(output_dir)
 
-    out_base = Path(output_dir) / "driftmux-report"
+    if len(results) == 1:
+        report_name = f"driftmux-report-{safe_filename(results[0].host)}"
+    else:
+        report_name = "driftmux-report-multiple-hosts"
+
+    out_base = Path(output_dir) / report_name
 
     if config.output_format == "json":
         path = write_json(out_base.with_suffix(".json"), results)
