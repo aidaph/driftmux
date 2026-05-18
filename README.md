@@ -122,6 +122,14 @@ pip install plecost
 
 ```
 
+### Optional OpenStack support
+
+OpenStack auditing requires `openstacksdk`:
+
+```bash
+pip install openstacksdk
+```
+
 
 ## Usage
 
@@ -163,6 +171,17 @@ Run a passive profile:
 driftmux --host example.org --profile passive
 ```
 
+## OpenStack Neutron security group audit
+
+Driftmux can audit OpenStack Neutron security groups to detect public exposure of critical ports without accessing the guest virtual machines.
+
+This mode queries the OpenStack API and analyses Neutron security group rules. It is useful for cloud administrators who want to detect risky network exposure at the OpenStack layer.
+
+Example:
+
+```bash
+driftmux --openstack-sg-audit --os-cloud admin --format markdown
+
 ## Example output
 
 ```text
@@ -183,6 +202,26 @@ When Nmap can identify product, version or CPE information, driftmux can use tha
 If a service is reported as `tcpwrapped`, driftmux can still report the exposed port, but it may not have enough evidence to map it to a specific vulnerable product.
 
 ---
+
+## Driftmux OpenStack Neutron Security Group Audit
+
+- Checked rules: 3254
+- Findings: 340
+- Errors: 0
+
+### Project: a-project `project-id`
+
+- Total findings: 12
+- Critical: 1
+- High: 11
+- Medium: 0
+- Low: 0
+- Info: 0
+
+| Severity | Security group | Protocol | Ports | Source | Match | Used by ports | Used by servers | Rule ID |
+|---|---|---|---|---|---|---:|---:|---|
+| CRITICAL | default | any | all | 0.0.0.0/0 | all_ports | 3 | 2 | rule-id |
+| HIGH | ssh-public | tcp | 22 | 0.0.0.0/0 | 22/SSH | 1 | 1 | rule-id |
 
 ## Scan profiles
 
