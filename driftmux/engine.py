@@ -8,6 +8,7 @@ from driftmux.scanners.nmap import NmapScanner
 from driftmux.scanners.nuclei import NucleiScanner
 from driftmux.scanners.nvd import NvdConfig, NvdCveScanner
 from driftmux.scanners.plecost import PlecostScanner
+from driftmux.scanners.openstack import NeutronSecurityGroupAuditor
 from driftmux.utils import collect_scan_hosts
 
 
@@ -80,6 +81,8 @@ class ScanConfig:
     nvd_cache: str = "~/.cache/driftmux/nvd.sqlite"
     nvd_cache_ttl_hours: int = 168
 
+    debug: bool = False    
+
 
 class DriftmuxEngine:
     def __init__(self, config: ScanConfig):
@@ -99,6 +102,7 @@ class DriftmuxEngine:
                 cache_path=config.nvd_cache,
                 cache_ttl_hours=config.nvd_cache_ttl_hours,
                 timeout=max(20, min(config.timeout, 60)),
+                debug=config.debug,
             )
         )
 
@@ -218,3 +222,7 @@ class DriftmuxEngine:
             final.findings.extend(plecost_result.findings)
             final.errors.extend(plecost_result.errors)
             final.metadata.update(plecost_result.metadata)
+
+    def audit_openstack_security_groups(self, os_cloud: str | None = None) -> list[HostScanResult]:
+        auditor = NeutronSecurityGroupAuditor(os_cloud=os_cloud)
+        return [auditor.audit()]

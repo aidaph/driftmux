@@ -53,6 +53,7 @@ Contents
    quickstart
    profiles
    cli
+   openstack
 
 .. toctree::
    :maxdepth: 2

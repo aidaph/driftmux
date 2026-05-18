@@ -33,6 +33,7 @@ class NvdConfig:
     cache_ttl_hours: int = 120
     timeout: int = 20
     max_cves_per_service: int = 50
+    debug: bool = False
 
 
 class NvdCveScanner:
@@ -42,6 +43,10 @@ class NvdCveScanner:
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_cache()
 
+        def _debug(self, *parts: object) -> None:
+            if self.debug:
+                print("[DEBUG][nvd]", *parts)
+
     def scan(self, host: str, services: list[OpenPort]) -> HostScanResult:
         result = HostScanResult(host=host)
 
@@ -50,6 +55,17 @@ class NvdCveScanner:
 
         for service in services:
             cpes = self._service_cpes(service)
+            self._debug(
+                "input service:",
+                f"host={host}",
+                f"port={service.port}",
+                f"service={service.service}",
+                f"product={service.product}",
+                f"version={service.version}",
+                f"extrainfo={service.extrainfo}",
+                f"cpes={cpes}",
+                f"classifications={service.classifications}",
+            )
 
             if not cpes:
                 result.metadata.setdefault("nvd", {}).setdefault("services_without_cpe", []).append(
@@ -123,10 +139,13 @@ class NvdCveScanner:
 
         for cpe in service.cpes:
             if not self.is_actionable_cpe(cpe):
+                self._debug("skip cpe:", cpe, "reason=not actionable")
                 continue
             cpe23 = normalize_cpe_to_23(cpe)
             if cpe23 and cpe23 not in normalized:
                 normalized.append(cpe23)
+
+            self._debug("query cpe:", cpe)
 
         return normalized
 

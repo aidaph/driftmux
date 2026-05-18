@@ -112,6 +112,20 @@ def banner() -> None:
     show_default=True,
     help="How long cached NVD responses remain valid.",
 )
+@click.option(
+    "--openstack-sg-audit",
+    is_flag=True,
+    help="Audit OpenStack Neutron security groups for public exposure of critical ports",
+)
+@click.option(
+    "--os-cloud",
+    help="OpenStack cloud name from clouds.yaml, for example admin",
+)
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Enable debug output.",
+)
 def main(
     host_file: str | None,
     host: str | None,
@@ -132,9 +146,17 @@ def main(
     nvd_api_key: str | None,
     nvd_cache: str,
     nvd_cache_ttl_hours: int,
+    openstack_sg_audit: bool,
+    os_cloud: str | None,
+    debug: bool,
 ) -> None:
-    if not host and not host_file and not target:
-        raise click.UsageError("Provide one of --host, --host-file or --target.")
+    if not host and not host_file and not target and not openstack_sg_audit:
+        raise click.UsageError("Provide one of --host, --host-file or --target or --openstack-sg-audit.")
+
+    if openstack_sg_audit and any([host, host_file, target]):
+        raise click.UsageError(
+            "Use either --openstack-sg-audit or host-based scanning options, not both."
+        )
 
     if http_only and https_only:
         raise click.UsageError("Use only one of --http-only or --https-only")
@@ -163,34 +185,43 @@ def main(
         nvd_api_key=nvd_api_key,
         nvd_cache=nvd_cache,
         nvd_cache_ttl_hours=nvd_cache_ttl_hours,
+        debug=debug,
     )
 
-    hosts: list[str] = []
-
-    if host_file:
-        hosts.extend(read_hosts(host_file=host_file, host=None))
-
-    if host:
-        hosts.append(host)
-
-    if target:
-        try:
-            hosts.extend(expand_targets(target, max_hosts=max_hosts))
-        except ValueError as exc:
-            raise click.UsageError(str(exc)) from exc
-
-    seen: set[str] = set()
-    hosts = [item for item in hosts if not (item in seen or seen.add(item))]
-
-    if not hosts:
-        raise click.UsageError("No valid hosts were provided.")
-
     engine = DriftmuxEngine(config)
-    results = engine.scan_hosts(hosts)
+
+    if openstack_sg_audit:
+        results = engine.audit_openstack_security_groups(os_cloud=os_cloud)
+    else:
+        #hosts = read_hosts(host_file=host_file, host=host)
+        hosts: list[str] = []
+
+        if host_file:
+            hosts.extend(read_hosts(host_file=host_file, host=None))
+
+        if host:
+            hosts.append(host)
+
+        if target:
+            try:
+                hosts.extend(expand_targets(target, max_hosts=max_hosts))
+            except ValueError as exc:
+                raise click.UsageError(str(exc)) from exc
+
+        seen: set[str] = set()
+
+        hosts = [item for item in hosts if not (item in seen or seen.add(item))]
+        if not hosts:
+                raise click.UsageError("No valid hosts were provided.")
+
+        results = engine.scan_hosts(hosts)
+
 
     ensure_dir(output_dir)
 
-    if len(results) == 1:
+    if openstack_sg_audit:
+        report_name = "driftmux-openstack-neutron-security-groups"
+    elif len(results) == 1:
         report_name = f"driftmux-report-{safe_filename(results[0].host)}"
     else:
         report_name = "driftmux-report-multiple-hosts"
