@@ -43,9 +43,12 @@ class NvdCveScanner:
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_cache()
 
-        def _debug(self, *parts: object) -> None:
-            if self.debug:
-                print("[DEBUG][nvd]", *parts)
+    def _debug(self, *parts: object) -> None:
+        if not getattr(self, "debug", False):
+            return
+
+        message = " ".join(str(part) for part in parts)
+        print(f"[nvd] {message}")
 
     def scan(self, host: str, services: list[OpenPort]) -> HostScanResult:
         result = HostScanResult(host=host)
